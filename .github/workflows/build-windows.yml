@@ -1,43 +1,30 @@
 name: Build Windows exe
 
-
 on:
-push:
-branches: [ main, master ]
-workflow_dispatch: {}
-
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
 
 jobs:
-build:
-runs-on: ubuntu-latest
-steps:
-- uses: actions/checkout@v4
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
 
-- name: Setup Go
-uses: actions/setup-go@v5
-with:
-go-version: '1.22.x'
+      - name: Tidy
+        run: go mod tidy
 
+      - name: Build Windows amd64
+        run: |
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o tsnet-browser-proxy.exe ./main.go
 
-Check failure on line 22 in .github/workflows/build-windows.yml
-GitHub Actions / .github/workflows/build-windows.yml
-
-Invalid workflow file
-
-You have an error in your yaml syntax on line 22
-
-- name: Tidy
-run: go mod tidy
-
-
-- name: Build Windows amd64
-run: |
-GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o tsnet-browser-proxy.exe ./main.go
-
-
-- name: Upload artifact
-uses: actions/upload-artifact@v4
-with:
-name: tsnet-browser-proxy-windows-amd64
-path: tsnet-browser-proxy.exe
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsnet-browser-proxy-windows-amd64
+          path: tsnet-browser-proxy.exe
