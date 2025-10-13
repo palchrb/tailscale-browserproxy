@@ -20,6 +20,13 @@ with:
 go-version: '1.22.x'
 
 
+Check failure on line 22 in .github/workflows/build-windows.yml
+GitHub Actions / .github/workflows/build-windows.yml
+
+Invalid workflow file
+
+You have an error in your yaml syntax on line 22
+
 - name: Tidy
 run: go mod tidy
 
