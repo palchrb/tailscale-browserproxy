@@ -1,4 +1,4 @@
-// main.go — tsnet-basert lokal HTTP(S) proxy + PAC for Tailnet-tilgang uten installasjon
+// main.go — tsnet-based local HTTP(S) proxy + PAC for Tailnet access without installation
 package main
 
 import (
@@ -29,12 +29,12 @@ var (
 const homeTemplate = `<!doctype html><meta charset="utf-8">
 <title>tsnet-browser-proxy</title>
 <h1>tsnet-browser-proxy</h1>
-<p>Kjører som <b>%s</b>. Sett nettleser-proxy til <code>http://%s</code> (HTTP og HTTPS).</p>
-<p>Valgfritt PAC: <code>http://%s/proxy.pac</code></p>
+<p>Running as <b>%s</b>. Set browser proxy to <code>http://%s</code> (HTTP and HTTPS).</p>
+<p>Optional PAC: <code>http://%s/proxy.pac</code></p>
 <pre>SET TS_AUTHKEY=tskey-ephemeral-XXXX
 %s -v
 Chrome: chrome.exe --proxy-server="http://%s"
-Firefox: Settings → Network → Manual proxy → HTTP Proxy: 127.0.0.1  Port: 8384  (hake for HTTPS også)</pre>
+Firefox: Settings → Network → Manual proxy → HTTP Proxy: 127.0.0.1  Port: 8384  (check HTTPS as well)</pre>
 `
 
 const pacTemplate = `function FindProxyForURL(url, host) {
@@ -52,14 +52,14 @@ func vprintf(f string, a ...any) {
 }
 
 func main() {
-	flag.StringVar(&listen, "listen", "127.0.0.1:8384", "adresse for lokal proxy & PAC")
-	flag.StringVar(&name, "name", "tsnet-browser-proxy", "tsnet Hostname i tailnet")
+	flag.StringVar(&listen, "listen", "127.0.0.1:8384", "address for local proxy & PAC")
+	flag.StringVar(&name, "name", "tsnet-browser-proxy", "tsnet Hostname in tailnet")
 	flag.BoolVar(&verbose, "v", false, "verbose logging")
 	flag.Parse()
 
 	authKey := os.Getenv("TS_AUTHKEY")
 	if authKey == "" {
-		log.Fatal("TS_AUTHKEY mangler i miljøet")
+		log.Fatal("TS_AUTHKEY missing from environment")
 	}
 
 	// Start embedded Tailscale node
@@ -72,14 +72,14 @@ func main() {
 	defer cancel()
 
 	if _, err := srv.Up(ctx); err != nil {
-		log.Fatalf("tsnet oppstart feilet: %v", err)
+		log.Fatalf("tsnet startup failed: %v", err)
 	}
 	defer srv.Close()
 
-	// Én HTTP-server som både viser / og /proxy.pac, og fungerer som proxy-handler
+	// One HTTP server that serves both / and /proxy.pac, and also acts as proxy handler
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Hvis dette er en vanlig HTTP-kall til vår egen server (ingen absolute-form URL),
-		// så betjen / og /proxy.pac her. Proxy-forespørsler fra nettleser bruker absolute-form.
+		// If this is a normal HTTP call to our own server (no absolute-form URL),
+		// handle / and /proxy.pac here. Proxy requests from browsers use absolute-form.
 		if r.Method != http.MethodConnect && (r.URL.Scheme == "" || r.URL.Host == "") {
 			switch r.URL.Path {
 			case "/":
@@ -103,7 +103,7 @@ func main() {
 			}
 		}
 
-		// Proxy-modus
+		// Proxy mode
 		if r.Method == http.MethodConnect {
 			handleConnect(w, r, srv)
 			return
@@ -118,20 +118,20 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 	}
 
-	log.Printf("HTTP proxy og PAC på http://%s  (PAC: /proxy.pac)", listen)
+	log.Printf("HTTP proxy and PAC at http://%s  (PAC: /proxy.pac)", listen)
 
-	// Start server (blokkerer til signal)
+	// Start server (blocks until signal)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("ListenAndServe feilet: %v", err)
+		log.Fatalf("ListenAndServe failed: %v", err)
 	}
 }
 
-// Handle HTTP CONNECT → opprett rå TCP-tunnel via tsnet.Dial
+// Handle HTTP CONNECT → establish raw TCP tunnel via tsnet.Dial
 func handleConnect(w http.ResponseWriter, r *http.Request, srv *tsnet.Server) {
 	target := r.Host
 	vprintf("CONNECT %s", target)
 
-	// Hijack HTTP-tilkoblingen for rå TCP
+	// Hijack HTTP connection for raw TCP
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		http.Error(w, "proxy supports hijacking only", http.StatusInternalServerError)
@@ -156,14 +156,14 @@ func handleConnect(w http.ResponseWriter, r *http.Request, srv *tsnet.Server) {
 	}
 	defer tsConn.Close()
 
-	// OK til klient
+	// OK to client
 	_, _ = io.WriteString(clientConn, "HTTP/1.1 200 Connection Established\r\n\r\n")
 
-	// Pump begge veier
+	// Pump both directions
 	errCh := make(chan struct{}, 2)
 	go func() {
 		_, _ = io.Copy(tsConn, buf)
-		// Forsøk half-close om mulig, ellers bare close
+		// Try half-close if possible, otherwise just close
 		type closeWriter interface{ CloseWrite() error }
 		if cw, ok := tsConn.(closeWriter); ok {
 			_ = cw.CloseWrite()
@@ -180,10 +180,10 @@ func handleConnect(w http.ResponseWriter, r *http.Request, srv *tsnet.Server) {
 	<-errCh
 }
 
-// Handle plain HTTP gjennom absolute-form URI: videresend request via tsnet.Dial
+// Handle plain HTTP via absolute-form URI: forward request through tsnet.Dial
 func handleHTTPForward(w http.ResponseWriter, r *http.Request, srv *tsnet.Server) {
 	if r.URL.Scheme == "" || r.URL.Host == "" {
-		http.Error(w, "Forventet absolute-form URI gjennom proxy", http.StatusBadRequest)
+		http.Error(w, "Expected absolute-form URI through proxy", http.StatusBadRequest)
 		return
 	}
 
@@ -207,18 +207,18 @@ func handleHTTPForward(w http.ResponseWriter, r *http.Request, srv *tsnet.Server
 	}
 	defer backend.Close()
 
-	// Skriv request line i origin-form (path + query)
+	// Write request line in origin-form (path + query)
 	reqLine := fmt.Sprintf("%s %s HTTP/1.1\r\n", r.Method, r.URL.RequestURI())
 	if _, err := io.WriteString(backend, reqLine); err != nil {
 		http.Error(w, "502", http.StatusBadGateway)
 		return
 	}
 
-	// Kopier headers, men sett Host korrekt; fjern Proxy-Connection/Connection som kan skape krøll
+	// Copy headers, but set Host correctly; remove Proxy-Connection/Connection that might cause issues
 	h := make(http.Header)
 	for k, vv := range r.Header {
 		for _, v := range vv {
-			// Filtrer ut proxy-spesifikke headers
+			// Filter out proxy-specific headers
 			if strings.EqualFold(k, "Proxy-Connection") {
 				continue
 			}
@@ -228,7 +228,7 @@ func handleHTTPForward(w http.ResponseWriter, r *http.Request, srv *tsnet.Server
 	h.Set("Host", r.URL.Host)
 	h.Del("Proxy-Connection")
 
-	// Skriv headers
+	// Write headers
 	tp := textproto.MIMEHeader(h)
 	for k, vv := range tp {
 		for _, v := range vv {
@@ -242,7 +242,7 @@ func handleHTTPForward(w http.ResponseWriter, r *http.Request, srv *tsnet.Server
 		_, _ = io.Copy(backend, r.Body)
 	}
 
-	// Les svar fra backend og send til klient
+	// Read response from backend and send to client
 	br := bufio.NewReader(backend)
 	resp, err := http.ReadResponse(br, r)
 	if err != nil {
