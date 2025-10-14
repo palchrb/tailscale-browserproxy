@@ -7,7 +7,7 @@ Just an experiment. While waiting for tailscale to develop their browser extensi
 
 Currently you start it with this command in cmd.exe
 ```
-set TS_AUTHKEY=tskey-ephemeral-XXXX
+set TS_AUTHKEY=<your-tailscale-key-here>
 tsnet-browser-proxy.exe -v
 ```
 And then start your favorite browser with it, e.g. start chrome --proxy-server="http=127.0.0.1:8384;https=127.0.0.1:8384"
