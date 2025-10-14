@@ -1,7 +1,7 @@
 # A tailscale browser proxy client
 
 
-Just an experiment. While waiting for tailscale to develop their browser extension I was wondering if it was possible to create a small .exe that could run a tailscale browser proxy for firefox or chrome to use without installing tailscale system wide on a windows pc. And it is possible and it does work with my few minutes of testing. As of now i have only tried it with an ephemeral key generated from Tailscale admin pages/keys. 
+Just an experiment and little more than a wrapper for tailscale's tsnet go server. While waiting for tailscale to develop their browser extension I was wondering if it was possible to create a small .exe that could run a tailscale browser proxy for firefox or chrome to use without installing tailscale system wide on a windows pc. And it is possible and it does work with my few minutes of testing. As of now i have only tried it with an ephemeral key generated from Tailscale admin pages/keys. 
 
 **Note that this is just a simple experiment i did for fun, no guarantees that this is at all a good idea - and you probably would not be allowed to use it on your work computer even though it probably technically would run.**
 
