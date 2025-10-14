@@ -6,9 +6,10 @@ Just an experiment. While waiting for tailscale to develop their browser extensi
 **Note that this is just a simple experiment i did for fun, no guarantees that this is at all a good idea - and you probably would not be allowed to use it on your work computer even though it probably technically would run.**
 
 Currently you start it with this command in cmd.exe
+```
 set TS_AUTHKEY=tskey-ephemeral-XXXX
 tsnet-browser-proxy.exe -v
-
+```
 And then start your favorite browser with it, e.g. start chrome --proxy-server="http=127.0.0.1:8384;https=127.0.0.1:8384"
 
 Or in firefox you can add it as a browser proxy in the network settings, and type in the address:port in the http field and select to also use it for https
