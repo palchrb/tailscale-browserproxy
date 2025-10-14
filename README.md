@@ -17,3 +17,6 @@ Its quite rudimentary now, but it could be improved if anyone is interested;
 - Maybe put som sort of basic auth on it at least
 - Some smart/safe way of letting it store a longer living ts key
 - Not necessarily a part of the code, but some convenient way of autostarting it minimized/hidden from a shortcut in your browser
+
+
+ If you want to talk about it, feel free to contact me [on Matrix](https://matrix.to/#/#whatever:vibb.me)
