@@ -7,7 +7,7 @@ Just an experiment and little more than a wrapper for tailscale's tsnet go serve
 
 Currently you start it with this command in cmd.exe
 ```
-set TS_AUTHKEY=<your-tailscale-key-here>
+$env:TS_AUTHKEY = 'tskey-auth-XXXX'
 tsnet-browser-proxy.exe -v
 ```
 And then start your favorite browser with it, e.g. 
