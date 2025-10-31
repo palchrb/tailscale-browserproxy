@@ -2,11 +2,11 @@ name: Auto-bump tailscale.com (tsnet) and release
 
 on:
   schedule:
-    - cron: "17 4 * * *"   # daglig 04:17 UTC (~06:17 Europe/Oslo vintertid)
+    - cron: "17 4 * * *"   # daglig 04:17 UTC
   workflow_dispatch: {}
 
 permissions:
-  contents: write   # nødvendig for commit, tag og release
+  contents: write   # commit, tag, release
 
 jobs:
   bump_build_release:
@@ -30,20 +30,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Finn nåværende versjon (fra go.mod)
           CURR=$(grep -E '^[[:space:]]*require[[:space:]]+tailscale\.com[[:space:]]+v' go.mod | awk '{print $2}')
-          # Spør Go-proxy om en nyere versjon finnes
+          # Go viser .Update.Version kun hvis en nyere finnes
           LATEST=$(go list -m -u -json tailscale.com | jq -r '.Update.Version // ""')
-          echo "current=$CURR"  >> "$GITHUB_OUTPUT"
-          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          HAS_UPDATE=false
+          if [ -n "$LATEST" ]; then HAS_UPDATE=true; fi
+          echo "current=$CURR"      >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST"     >> "$GITHUB_OUTPUT"
+          echo "has_update=$HAS_UPDATE" >> "$GITHUB_OUTPUT"
+          echo "Current: $CURR  Latest: ${LATEST:-<none>}  Has update: $HAS_UPDATE"
 
-      - name: Stop hvis allerede latest
-        if: steps.ts.outputs.latest == ''
-        run: |
-          echo "tailscale.com er allerede på siste versjon (${ { steps.ts.outputs.current } }). Ingenting å gjøre."
-          exit 0
-
+      # Alt under her kjører KUN ved ny versjon
       - name: Bump go.mod → ${{ steps.ts.outputs.latest }}
+        if: steps.ts.outputs.has_update == 'true'
         run: |
           set -euo pipefail
           go get tailscale.com@${{ steps.ts.outputs.latest }}
@@ -55,10 +54,12 @@ jobs:
           git push
 
       - name: Build Windows amd64 exe
+        if: steps.ts.outputs.has_update == 'true'
         run: |
           GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o tsnet-browser-proxy.exe ./main.go
 
       - name: Create version tag (includes Tailscale version)
+        if: steps.ts.outputs.has_update == 'true'
         id: tag
         env:
           TS_VER: ${{ steps.ts.outputs.latest }}
@@ -70,6 +71,7 @@ jobs:
           git push origin "$TAG"
 
       - name: Create GitHub Release + upload exe
+        if: steps.ts.outputs.has_update == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
@@ -81,6 +83,11 @@ jobs:
           body: |
             Automated build pinned to **tailscale.com ${{ steps.ts.outputs.latest }}** (includes `tsnet`).
             - Module bump committed: `${{ steps.ts.outputs.current }} → ${{ steps.ts.outputs.latest }}`
-            - Built on: ${{ github.workflow }} / ${{ github.run_id }}
+            - Workflow run: ${{ github.workflow }} / ${{ github.run_id }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Nothing to do (already latest)
+        if: steps.ts.outputs.has_update != 'true'
+        run: |
+          echo "tailscale.com er allerede på siste versjon (${ { steps.ts.outputs.current } }). Hopper over bump/build/release."
