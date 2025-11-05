@@ -2,7 +2,7 @@ name: Auto-bump tailscale.com (tsnet) and release
 
 on:
   schedule:
-    - cron: "17 4 * * *"   # daglig 04:17 UTC
+    - cron: "17 4 * * *"   # daily 04:17 UTC
   workflow_dispatch: {}
 
 permissions:
@@ -25,22 +25,22 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Find current and latest tailscale.com version
+      - name: Detect current and latest tailscale.com version
         id: ts
         shell: bash
         run: |
           set -euo pipefail
           CURR=$(grep -E '^[[:space:]]*require[[:space:]]+tailscale\.com[[:space:]]+v' go.mod | awk '{print $2}')
-          # Go viser .Update.Version kun hvis en nyere finnes
+          # go list shows .Update.Version only if a newer version exists
           LATEST=$(go list -m -u -json tailscale.com | jq -r '.Update.Version // ""')
           HAS_UPDATE=false
           if [ -n "$LATEST" ]; then HAS_UPDATE=true; fi
-          echo "current=$CURR"      >> "$GITHUB_OUTPUT"
-          echo "latest=$LATEST"     >> "$GITHUB_OUTPUT"
+          echo "current=$CURR"          >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST"         >> "$GITHUB_OUTPUT"
           echo "has_update=$HAS_UPDATE" >> "$GITHUB_OUTPUT"
           echo "Current: $CURR  Latest: ${LATEST:-<none>}  Has update: $HAS_UPDATE"
 
-      # Alt under her kjører KUN ved ny versjon
+      # Everything below only runs when a new version exists
       - name: Bump go.mod → ${{ steps.ts.outputs.latest }}
         if: steps.ts.outputs.has_update == 'true'
         run: |
@@ -65,7 +65,7 @@ jobs:
           TS_VER: ${{ steps.ts.outputs.latest }}
         run: |
           set -euo pipefail
-          TAG="v-tsnet-${TS_VER}"      # f.eks. v-tsnet-1.88.3
+          TAG="v-tsnet-${TS_VER}"      # e.g. v-tsnet-1.88.3
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           git tag -a "$TAG" -m "tsnet-browser-proxy built against tailscale.com ${TS_VER}"
           git push origin "$TAG"
@@ -89,5 +89,4 @@ jobs:
 
       - name: Nothing to do (already latest)
         if: steps.ts.outputs.has_update != 'true'
-        run: |
-          echo "tailscale.com er allerede på siste versjon (${ { steps.ts.outputs.current } }). Hopper over bump/build/release."
+        run: echo "tailscale.com is already at the latest version (${{ steps.ts.outputs.current }}). Skipping bump/build/release."
