@@ -2,7 +2,7 @@ module github.com/palchrb/ts-test
 
 go 1.25.5
 
-require tailscale.com v1.92.4
+require tailscale.com v1.92.5
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
